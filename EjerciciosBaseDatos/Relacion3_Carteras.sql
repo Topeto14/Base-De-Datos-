@@ -29,7 +29,8 @@ CREATE TABLE IF NOT exists Zona (
     Nom_zona varchar(10) NOT NULL,
     Id_Ciud char(3) NOT NULL,
     foreign key (Id_Ciud) references Ciudad (Id_ciud)
-    on delete cascade
+    on delete cascade,
+    primary key (Id_zona,Id_Ciud)
 ); 
 describe Zona ;
 CREATE TABLE IF NOT EXISTS Relacion2 (
@@ -37,6 +38,7 @@ CREATE TABLE IF NOT EXISTS Relacion2 (
     Id_ciud char (3) NOT NULL,
     Id_cart char(3) NOT NULL,
     Id_per char(3) NOT NULL,
+    primary key(Id_zona, Id_ciud,Id_cart, Id_per),
     foreign key (Id_zona) references Zona (Id_zona)
     on delete cascade,
     foreign key (Id_ciud) references Ciudad (Id_ciud)
