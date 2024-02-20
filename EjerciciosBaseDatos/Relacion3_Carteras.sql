@@ -28,8 +28,6 @@ CREATE TABLE IF NOT exists Zona (
 	Id_zona char(3) NOT NULL primary key,
     Nom_zona varchar(10) NOT NULL,
     Id_Ciud char(3) NOT NULL,
-    foreign key (Id_Ciud) references Ciudad (Id_ciud)
-    on delete cascade,
     primary key (Id_zona,Id_Ciud)
 ); 
 describe Zona ;
