@@ -129,7 +129,7 @@ alojamiento. Donde aparezca la media del sueldo y el nombre del alojamiento.*/
 select a.nom_aloj, avg(e.sueldo) as media_sueldo
 from Alojamientos a 
 join Empleado e On a.id_aloj = e.id_aloj
-group by a.nom_aloj
+group by a.nom_aloj;
 /*12. El sueldo de los empleados que trabajan en el alojamiento HOSTAL LUCERO 
 se incrementa en un 20% (es decir se actualiza la tabla empleados).*/
 UPDATE Empleado

@@ -294,6 +294,14 @@ inner join Tipoart ta On a.id_tipo = ta.id_tipo
 where ta.nom_tipo like "Bazar";
 
 /*14.- ARTICULOS DE TIPO BAZAR MAS VENDIDOS*/
+
+select a.nom_art, count(ta.id_tipo)
+from Articulos a
+inner join Tipoart ta On a.id_tipo = ta.id_tipo
+where ta.nom_tipo like "Bazar"
+group by a.nom_art;
+
+ 
 /*SELECT A.nom_art, COUNT(*) AS cantidad_vendida
 FROM Articulos A
 INNER JOIN Vendart VA ON A.id_art = VA.id_art
