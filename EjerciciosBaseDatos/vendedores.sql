@@ -20,7 +20,7 @@ on update cascade
 create table if not exists Vendedores (
 id_vend char(3) primary key,
 nom_vend char(20),
-salario integer (4),
+salario double,
 id_tienda char(3),
 foreign key (id_tienda) references Tienda (id_tienda)
 on delete cascade
@@ -37,7 +37,7 @@ nom_tipo varchar(15)
 create table if not exists Articulos(
 id_art char(3) primary key,
 nom_art varchar(15),
-precio integer(3),
+precio double,
 id_tipo char(3),
 foreign key (id_tipo) references Tipoart (id_tipo)
 on delete cascade 
@@ -284,6 +284,7 @@ from Vendedores v
 inner join Vendart va On v.id_vend = va.id_vend
 inner join Articulos a On va.id_art = a.id_art 
 where a.nom_art like "leche";
+
 /*13.- NOMBRE DE LOS QUE VENDIERON ARTICULOS DE TIPO BAZAR.*/
 
 select distinct v.nom_vend
@@ -294,177 +295,368 @@ inner join Tipoart ta On a.id_tipo = ta.id_tipo
 where ta.nom_tipo like "Bazar";
 
 /*14.- ARTICULOS DE TIPO BAZAR MAS VENDIDOS*/
-/*SELECT A.nom_art, COUNT(*) AS cantidad_vendida
+
+SELECT A.nom_art  
 FROM Articulos A
 INNER JOIN Vendart VA ON A.id_art = VA.id_art
 INNER JOIN Tipoart T ON A.id_tipo = T.id_tipo
 WHERE T.nom_tipo = 'BAZAR'
 GROUP BY A.nom_art
-ORDER BY cantidad_vendida DESC
-LIMIT 5;*/
+having count(VA.id_art) = (select count(VA.id_art) 
+					FROM Articulos A
+					INNER JOIN Vendart VA ON A.id_art = VA.id_art
+					INNER JOIN Tipoart T ON A.id_tipo = T.id_tipo
+					WHERE T.nom_tipo = 'BAZAR'
+                    group by A.nom_art
+                    order by 1 desc limit 1);
+                    
 /*15.- NOMBRE DEL TIPO CON QUE MAS SE GANA*/
-/*SELECT T.nom_tipo
+
+SELECT T.nom_tipo
 FROM Tipoart T
 INNER JOIN Articulos A ON T.id_tipo = A.id_tipo
 INNER JOIN Vendart VA ON A.id_art = VA.id_art
 GROUP BY T.nom_tipo
 ORDER BY SUM(A.precio) DESC
-LIMIT 1;*/
+LIMIT 1;
+
 /*16.- SALARIO Y NOMBRE DE TODOS LOS QUE VENDIERON BOMBILLAS.*/
-/*SELECT V.nom_vend, V.salario
+
+SELECT V.nom_vend, V.salario
 FROM Vendedores V
 INNER JOIN Vendart VA ON V.id_vend = VA.id_vend
 INNER JOIN Articulos A ON VA.id_art = A.id_art
-WHERE A.nom_art = 'BOMBILLAS';*/
+WHERE A.nom_art = 'BOMBILLA';
+
 /*17.- TIENDAS Y CIUDAD DONDE SE VENDIO ALGUNA RADIO.*/
-/*SELECT T.nom_tienda, C.nom_ciudad
-FROM Tienda T
-INNER JOIN Ciudad C ON T.id_ciudad = C.id_ciudad
-INNER JOIN Vendart VA ON T.id_tienda = VA.id_tienda
+
+SELECT distinct T.nom_tienda, C.nom_ciudad
+FROM Ciudad C
+INNER JOIN Tienda T ON T.id_ciudad = T.id_ciudad
+INNER JOIN Vendedores V On T.id_tienda = V.id_tienda
+INNER JOIN Vendart VA ON V.id_vend = VA.id_vend
 INNER JOIN Articulos A ON VA.id_art = A.id_art
-WHERE A.nom_art = 'RADIO';*/
+WHERE A.nom_art = 'RADIO';
+
 /*18.- SUBIR EL SUELDO UN 2% A LOS EMPLEADOS DE SEVILLA*/
-/*UPDATE Vendedores V
-SET salario = salario * 1.02
-WHERE V.id_tienda IN (SELECT id_tienda FROM Tienda WHERE id_ciudad = 'SEV');*/
+
+UPDATE Vendedores V SET salario = salario * 1.02
+WHERE V.id_tienda IN (SELECT id_tienda FROM Tienda T inner join Ciudad C On T.id_ciudad =C.id_ciudad where C.nom_ciudad like "Sevilla");
+select * from Vendedores ;
+
 /*19.- BAJA EL SUELDO UN 1% A LOS QUE NO HAYAN VENDIDO LECHE*/
-/*UPDATE Vendedores V
-SET salario = salario * 0.99
-WHERE V.id_vend NOT IN (
-    SELECT DISTINCT VA.id_vend
-    FROM Vendart VA
-    INNER JOIN Articulos A ON VA.id_art = A.id_art
-    INNER JOIN Tipoart T ON A.id_tipo = T.id_tipo
-    WHERE T.nom_tipo = 'LECHE'
-);*/
+SET SQL_SAFE_UPDATES=0;
+UPDATE Vendedores V SET salario = salario * 0.99
+WHERE V.id_vend not in (SELECT DISTINCT VA.id_vend
+										FROM Vendart VA
+										INNER JOIN Articulos A ON VA.id_art = A.id_art
+										WHERE A.nom_art = 'LECHE');
+select * from Vendedores ;               
+                         
 /*20.- SUBIR EL PRECIO UN 3% AL ARTICULO MAS VENDIDO*/
-/*UPDATE Articulos A
-SET precio = precio * 1.03
-WHERE A.id_art = (
-    SELECT id_art
-    FROM Vendart
-    GROUP BY id_art
-    ORDER BY COUNT(*) DESC
-    LIMIT 1
-);*/
-/*21.- SUBIR EL SUELDO UN 2% A LOS ARTICULOS DE TIPO MAS VENDIDO*/
-/*UPDATE Vendedores V
-SET salario = salario * 1.02
-WHERE V.id_vend IN (
-    SELECT DISTINCT VA.id_vend
-    FROM Vendart VA
-    INNER JOIN Articulos A ON VA.id_art = A.id_art
-    INNER JOIN Tipoart T ON A.id_tipo = T.id_tipo
-    GROUP BY VA.id_vend
-    ORDER BY COUNT(*) DESC
-    LIMIT 1*/
+
+Update Articulos  SET precio = precio * 1.03
+where id_art IN (select id_art 
+							from Vendart 
+							group by id_art
+                            having count(id_art) = (select count(id_art)
+														from Vendart 
+														group by id_art
+                                                        order by 1 desc 
+                                                        limit 1));
+      
+select * from Articulos;                            
+
+/*21.- SUBIR EL Precio UN 2% A LOS ARTICULOS DE TIPO MAS VENDIDO*/
+create view subirprecios as (select A.id_tipo 
+							From Articulos A
+                            inner join Vendart Va on  A.id_art = Va.id_art
+                            group by A.id_tipo
+                            having count(Va.id_art) = (select count(Va.id_art)
+															from Vendart Va
+                                                            inner join Articulos A On Va.id_art = A.id_art
+                                                            group by A.id_tipo
+                                                            order by 1 desc limit 1));
+Update Articulos SET precio = precio * 1.02
+where id_tipo In (select id_tipo 
+						from subirprecios);
+
+select * from subirprecios;
+select * from Articulos;
+
+
+
+
+
+
+
+
+UPDATE Articulos SET precio = precio * 1.02
+where id_art In (select id_art 
+						from Vendart 
+                        group by id_art
+                        having count(id_art) = (select count(id_art)
+													from Vendart 
+                                                    group by id_art
+                                                    order by 1 desc
+                                                    limit 1));
+
+select * from Vendedores; 
+
 /*22.- BAJAR UN 3% TODOS LOS ARTICULOS DE PAPELERIA*/
-/*UPDATE Articulos
-SET precio = precio * 0.97
-WHERE id_tipo = (SELECT id_tipo FROM Tipoart WHERE nom_tipo = 'PAPELERIA');*/
+
+UPDATE Articulos SET precio = precio * 0.97
+WHERE id_tipo = (SELECT id_tipo FROM Tipoart WHERE nom_tipo = 'PAPELERIA');
+select * from Articulos ;
+
 /*23.- SUBIR EL PRECIO UN 1% A TODOS LOS ARTICULOS VENDIDOS EN ALMERIA*/
-/*UPDATE Articulos
-SET precio = precio * 1.01
-WHERE id_art IN (
-    SELECT id_art
-    FROM Vendart
-    WHERE id_tienda IN (SELECT id_tienda FROM Tienda WHERE id_ciudad = 'ALMERIA')
-);*/
+UPDATE Articulos SET precio = precio * 1.01
+WHERE id_art IN (SELECT id_art
+						FROM Vendart
+						WHERE id_vend IN (SELECT id_vend 
+												FROM Tienda 
+                                                WHERE id_tienda IN (select id_tienda
+																			from Tienda 
+                                                                            where id_ciudad In (select id_ciudad
+																									from Ciudad
+                                                                                                    where nom_ciudad like "Almeria"))));
+select * from Articulos ;                                                                                                    
 /*24.- BAJAR EL PRECIO UN 5% AL ARTICULO QUE MAS HACE QUE NO SE VENDE*/
-/*UPDATE Articulos
-SET precio = precio * 0.95
-WHERE id_art = (
-    SELECT id_art
-    FROM Articulos
-    WHERE id_art NOT IN (SELECT DISTINCT id_art FROM Vendart)
-    ORDER BY fech_venta ASC
-    LIMIT 1
-);*/
+
+UPDATE Articulos SET precio = precio * 0.95
+WHERE id_art = (SELECT id_art
+						FROM Vendart
+						WHERE fech_venta = (SELECT  min(fech_venta) 
+														FROM Vendart));
+select * from Articulos ;
+                                            
 /*25.- CERRAR LA TIENDA QUE MENOS HA VENDIDO*/
-/*DELETE FROM Tienda
+DELETE FROM Tienda
 WHERE id_tienda = (
     SELECT id_tienda
-    FROM Tienda
-    LEFT JOIN Vendart VA ON Tienda.id_tienda = VA.id_tienda
-    GROUP BY Tienda.id_tienda
-    ORDER BY COUNT(VA.id_vend) ASC
-    LIMIT 1
-);*/
+    FROM Tienda T
+    LEFT JOIN Vendedores V ON T.id_tienda = V.id_tienda
+    inner join Vendart Va ON V.id_vend = Va.id_vend
+    GROUP BY V.id_tienda
+    having COUNT(Va.id_art) = (select count(Va2.id_art)
+											From Vendart Va2
+                                            LEFT JOIN Vendedores V ON Va2.id_vend = V2.id_vend
+                                            group by V2.id_tienda
+                                            order by count(Va2.id_art)
+                                            asc limit 1));
+ select * from Tienda;    
+ 
+ create view cerrartiendas4 as (SELECT T.id_tienda
+										FROM Tienda T
+										LEFT JOIN Vendedores V ON T.id_tienda = V.id_tienda
+										inner join Vendart Va ON V.id_vend = Va.id_vend
+										GROUP BY T.id_tienda
+										having COUNT(Va.id_art) = (select count(Va2.id_art)
+																				From Vendart Va2
+                                                                                LEFT JOIN Vendedores V2 ON Va2.id_vend = V2.id_vend
+																				group by V2.id_tienda
+																				order by count(Va2.id_art)
+																				asc limit 1));
+                                                                                
+select * from cerrartiendas4;                                                                                
+					                   
+                    
 /*26.- LA TIENDA LUNA PASA A LLAMARSE SOL Y LUNA*/
-/*UPDATE Tienda
+UPDATE Tienda
 SET nom_tienda = 'SOL Y LUNA'
-WHERE nom_tienda = 'LUNA';*/
+WHERE nom_tienda = 'LUNA';
+select * from Tienda ; 
 /*27.- DESPEDIR AL TRABAJADOR QUE MAS VENDIO*/
-/*DELETE FROM Vendedores
-WHERE id_vend = (
-    SELECT id_vend
-    FROM Vendedores
-    LEFT JOIN Vendart VA ON Vendedores.id_vend = VA.id_vend
-    GROUP BY Vendedores.id_vend
-    ORDER BY COUNT(VA.id_art) DESC
-    LIMIT 1
-);*/
+DELETE FROM Vendedores
+WHERE id_vend = (SELECT id_vend
+						FROM Vendart
+						GROUP BY id_vend
+						having COUNT(id_art) = (select count(id_art)
+															from Vendart
+															group by id_vend
+															order by 1 desc limit 1));
+/*Creando una vista */
+  create view despedir2 as (SELECT id_vend
+									FROM Vendart
+									GROUP BY id_vend
+									having COUNT(id_art) = (select count(id_art)
+																		from Vendart
+																		group by id_vend
+																		order by 1 desc limit 1));
+select * from despedir2 ;   
+      
+                                                              
 /*28.- LAS TIENDAS QUE NO VENDIERON LAPICES PASAN TODAS A SEVILLA*/
-/*UPDATE Tienda
-SET id_ciudad = 'SEV'
-WHERE id_tienda NOT IN (
-    SELECT DISTINCT VA.id_tienda
-    FROM Vendart VA
-    INNER JOIN Articulos A ON VA.id_art = A.id_art
-    WHERE A.nom_art = 'LAPICES'
-);*/
+
+UPDATE Tienda SET id_ciudad = (select id_ciudad
+										from ciudad
+										where nom_ciudad like 'Sevilla')
+																WHERE id_tienda NOT IN (SELECT DISTINCT VA.id_tienda
+																										FROM Vendart VA
+																										inner join Vendedores V On Va.id_vend = V.id_vend
+																										INNER JOIN Articulos A ON VA.id_art = A.id_art
+																										WHERE A.nom_art = 'LAPIZ');
+/*Como lo hace la profesora */
+update tienda set id_ciudad=(select id_ciudad
+							from ciudad
+                            where nom_ciudad like 'Sevilla')
+													where id_tienda not in(select distinct id_tienda
+																			from vendart,vendedores,articulos
+																			where vendart.id_vend=vendedores.id_vend
+																			and vendart.id_art=articulos.id_art
+																			and nom_art like 'Lapiz');   
+/*Crear vista */                        
+create view nolapiz as (select id_ciudad
+							from ciudad
+                            where nom_ciudad like 'Sevilla') 
+													where id_tienda not in(select distinct id_tienda
+													from vendart,vendedores,articulos
+													where vendart.id_vend=vendedores.id_vend
+													and vendart.id_art=articulos.id_art
+													and nom_art like 'Lapiz');                       
+    
 /*29.- DESPEDIR AL QUE MENOS DINERO HA HECHO VENDIENDO.*/
-/*DELETE FROM Vendedores
-WHERE id_vend = (
-    SELECT id_vend
-    FROM Vendedores
-    LEFT JOIN Vendart VA ON Vendedores.id_vend = VA.id_vend
-    GROUP BY Vendedores.id_vend
-    ORDER BY SUM(VA.precio) ASC
-    LIMIT 1
-);*/
+select id_vend 
+from vendart,articulos
+where vendart.id_art=articulos.id_art
+group by id_vend
+having sum(precio)=(select sum(precio)
+				from vendart,articulos
+				where vendart.id_art=articulos.id_art
+				group by id_vend
+                order by 1 limit 1);
+
+
+delete from vendedores
+where id_vend in (select id_vend 
+					from vendart,articulos
+					where vendart.id_art=articulos.id_art
+					group by id_vend
+					having sum(precio)=(select sum(precio)
+										from vendart,articulos
+										where vendart.id_art=articulos.id_art
+										group by id_vend
+										order by 1 limit 1));
+/* pendiente hacerla con una vista*/
+                
+                
+select * from vendedores;
+
 /*30.- EL ARTICULO QUE MENOS SE HA VENDIDO DEJAR DE ESTAR EN STOCK*/
-/*DELETE FROM Articulos
-WHERE id_art = (
-    SELECT id_art
-    FROM Articulos
-    LEFT JOIN Vendart VA ON Articulos.id_art = VA.id_art
-    GROUP BY Articulos.id_art
-    ORDER BY COUNT(VA.id_vend) ASC
-    LIMIT 1
-);*/
+
+select id_art, count(*)
+from vendart
+group by id_art
+having count(*)=(select count(*)
+				from vendart
+				group by id_art
+				order by 1 limit 1);
+
+select * from vendart;
+
+delete from articulos
+where id_art in (select id_art
+						from vendart
+						group by id_art
+						having count(*)=(select count(*)
+												from vendart
+												group by id_art
+												order by 1 limit 1));
+                                                
 /*31.- EL ARTICULO QUE MENOS DINERO HA GENERADO DEJA DE ESTAR EN STOCK*/
-/*DELETE FROM Articulos
-WHERE id_art = (
-    SELECT id_art
-    FROM Articulos
-    LEFT JOIN Vendart VA ON Articulos.id_art = VA.id_art
-    GROUP BY Articulos.id_art
-    ORDER BY SUM(VA.precio) ASC
-    LIMIT 1
-);*/
+
+create view articulosstock as 
+select vendart.id_art
+from vendart,articulos
+where vendart.id_art=articulos.id_art
+group by vendart.id_art
+having sum(precio)=(select sum(precio)
+					from vendart,articulos
+                    where vendart.id_art=articulos.id_art
+					group by vendart.id_art
+                    order by 1 limit 1);
+                    
+select * from articulosstock;
+                    
+                    
+delete from articulos
+where id_art in (select id_art
+				from articulosstock);
+
+
+
+                    
+                    
+select * from articulosstock;
+   /* sin vista*/
+   
+delete from articulos
+where id_art in( select vendart.id_art
+				from vendart,articulos
+				where vendart.id_art=articulos.id_art
+				group by vendart.id_art
+				having sum(precio)=(select sum(precio)
+									from vendart,articulos
+									where vendart.id_art=articulos.id_art
+									group by vendart.id_art
+									order by 1 limit 1));  
+
 /*32.- EL TIPO DE ARTICULO MENOS VENDIDO DEJA DE ESTAR EN STOCK*/
-/*DELETE FROM Tipoart
-WHERE id_tipo = (
-    SELECT id_tipo
-    FROM Tipoart
-    LEFT JOIN Articulos A ON Tipoart.id_tipo = A.id_tipo
-    GROUP BY Tipoart.id_tipo
-    ORDER BY COUNT(A.id_art) ASC
-    LIMIT 1
-);*/
-/*33.- EL TIPO DE ARTICULO CON EL QUE MENOS SE HA GANADO DEJA DE ESTAR EN STOCK
-DELETE FROM Tipoart
-WHERE id_tipo = (
-    SELECT id_tipo
-    FROM Tipoart
-    LEFT JOIN Articulos A ON Tipoart.id_tipo = A.id_tipo
-    LEFT JOIN Vendart VA ON A.id_art = VA.id_art
-    GROUP BY Tipoart.id_tipo
-    ORDER BY SUM(VA.precio) ASC
-    LIMIT 1
-);
-34.- SE DESPIDEN A TODOS LOS TRABAJADORES QUE NO HAN VENDIDO ARTICULOS DE BAZAR
+
+delete from tipoart
+where id_tipo in (select id_tipo
+				from vendart,articulos
+				where vendart.id_art=articulos.id_art
+				group by id_tipo
+				having count(*)=(select count(*)
+								from vendart,articulos
+								where vendart.id_art=articulos.id_art
+								group by id_tipo
+								order by 1 limit 1));
+                
+                
+//*CREADO VISTA*/
+CREATE VIEW ARTICULOMENOSVENDIDO AS
+select id_tipo
+from vendart,articulos
+where vendart.id_art=articulos.id_art
+group by id_tipo
+having count(*)=(select count(*)
+				from vendart,articulos
+				where vendart.id_art=articulos.id_art
+				group by id_tipo
+                order by 1 limit 1);
+
+
+DELETE FROM ARTICULOS 
+WHERE id_tipo in (select id_tipo from articulomenosvendido);
+/*33.- EL TIPO DE ARTICULO CON EL QUE MENOS SE HA GANADO DEJA DE ESTAR EN STOCK*/
+
+create view  tipostock as
+select id_tipo
+from vendart,articulos
+where vendart.id_art=articulos.id_art
+group by id_tipo
+having sum(precio)=(select sum(precio)
+				from vendart,articulos
+				where vendart.id_art=articulos.id_art
+				group by id_tipo
+                order by 1 limit 1);
+                
+delete from tipoart
+where id_tipo in (select id_tipo from tipostock);
+/*sin vista*/
+delete from tipoart
+where id_tipo in(select id_tipo
+					from vendart,articulos
+					where vendart.id_art=articulos.id_art
+					group by id_tipo
+					having sum(precio)=(select sum(precio)
+									from vendart,articulos
+									where vendart.id_art=articulos.id_art
+									group by id_tipo
+									order by 1 limit 1));
+/*34.- SE DESPIDEN A TODOS LOS TRABAJADORES QUE NO HAN VENDIDO ARTICULOS DE BAZAR*/
 DELETE FROM Vendedores
 WHERE id_vend NOT IN (
     SELECT DISTINCT VA.id_vend
@@ -473,25 +665,54 @@ WHERE id_vend NOT IN (
     INNER JOIN Tipoart T ON A.id_tipo = T.id_tipo
     WHERE T.nom_tipo = 'BAZAR'
 );
-35.- SE CIERRA LA TIENDA QUE MENOS DINERO HA GANADO.
-DELETE FROM Tienda
-WHERE id_tienda = (
-    SELECT id_tienda
-    FROM Tienda
-    LEFT JOIN Vendart VA ON Tienda.id_tienda = VA.id_tienda
-    GROUP BY Tienda.id_tienda
-    ORDER BY SUM(VA.precio) ASC
-    LIMIT 1
-);
-36.- TODOS LOS TRABAJADORES DE SEVILLA PASAN A LA TIENDA JOYMON*/
-/*UPDATE Vendedores
-SET id_tienda = (
-    SELECT id_tienda
-    FROM Tienda
-    WHERE nom_tienda = 'JOYMON'
-)
-WHERE id_tienda IN (
-    SELECT id_tienda
-    FROM Tienda
-    WHERE id_ciudad = 'SEV'
-);*/
+delete from vendedores
+where id_vend not in (select id_vend
+					from vendart,articulos,tipoart
+					where vendart.id_art=articulos.id_art
+					and articulos.id_tipo=tipoart.id_tipo
+					and nom_tipo like 'Bazar');
+
+
+select id_vend
+from vendart,articulos,tipoart
+where vendart.id_art=articulos.id_art
+and articulos.id_tipo=tipoart.id_tipo
+and nom_tipo like 'Bazar';
+/*35.- SE CIERRA LA TIENDA QUE MENOS DINERO HA GANADO.*/
+
+delete from tienda
+where id_tienda in (select id_tienda
+				from vendart,vendedores,articulos
+				where vendart.id_vend=vendedores.id_vend
+			and vendart.id_art=articulos.id_art
+			group by id_tienda
+			having sum(precio)=(select sum(precio)
+								from vendart,vendedores,articulos
+								where vendart.id_vend=vendedores.id_vend
+								and vendart.id_art=articulos.id_art
+								group by id_tienda
+								order by 1 limit 1));
+
+/*averiguo la tienda que menos ha vendido*/
+select id_tienda
+from vendart,vendedores,articulos
+where vendart.id_vend=vendedores.id_vend
+and vendart.id_art=articulos.id_art
+group by id_tienda
+ having sum(precio)=(select sum(precio)
+					from vendart,vendedores,articulos
+					where vendart.id_vend=vendedores.id_vend
+					and vendart.id_art=articulos.id_art
+					group by id_tienda
+					order by 1 limit 1);
+/*36.- TODOS LOS TRABAJADORES DE SEVILLA PASAN A LA TIENDA JOYMON*/
+
+update vendedores set id_tienda=(select 
+								id_tienda from tienda
+                                where nom_tienda like 
+								'Joymon')
+where id_tienda in (select id_tienda
+					from ciudad, tienda
+					where ciudad.id_ciudad=tienda.id_ciudad
+					and  nom_ciudad like 'Sevilla');
+
